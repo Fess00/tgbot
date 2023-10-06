@@ -16,9 +16,9 @@ async static Task Update(ITelegramBotClient client, Update update, CancellationT
     var message = update.Message;
     if (message.Text != null)
     {
-        if (message.Text.ToLower() == "леонид")
+        if (message.Text.ToLower() == "/help")
         {
-            await client.SendTextMessageAsync(message.Chat.Id, "Чиста гномик такой смищной, вобще ни магу");
+            await client.SendTextMessageAsync(message.Chat.Id, "Пока боту нечего сказать вам :(");
             return;
         }
     }
