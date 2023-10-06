@@ -13,8 +13,8 @@ static Task Error(ITelegramBotClient client, Exception exception, CancellationTo
 
 async static Task Update(ITelegramBotClient client, Update update, CancellationToken token)
 {
-    var message = update.Message;
-    if (message.Text != null)
+    Message? message = update.Message;
+    if (message!.Text != null)
     {
         if (message.Text.ToLower() == "/help")
         {
