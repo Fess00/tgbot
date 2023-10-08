@@ -1,10 +1,16 @@
 ﻿using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
-var client = new TelegramBotClient("840186999:AAGd3snwB0ONRTxrDYSEIX0fa_rKrQ2Tu60");
-client.StartReceiving(Update, Error);
+var client = new TelegramBotClient("");
+using var cts = new CancellationTokenSource();
+
+
+client.StartReceiving(Update, Error, cancellationToken: cts.Token);
 Console.ReadKey();
+await Task.Delay(int.MaxValue);
+cts.Cancel();
 
 static Task Error(ITelegramBotClient client, Exception exception, CancellationToken token)
 {
