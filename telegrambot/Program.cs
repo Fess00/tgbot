@@ -1,35 +1,76 @@
 ﻿using Telegram.Bot;
+using Telegram.Bot.Exceptions;
+using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
-var client = new TelegramBotClient("");
-using var cts = new CancellationTokenSource();
 
+var botClient = new TelegramBotClient("TOKEN");
 
-client.StartReceiving(Update, Error, cancellationToken: cts.Token);
-Console.ReadKey();
-await Task.Delay(int.MaxValue);
+using CancellationTokenSource cts = new();
+
+// StartReceiving does not block the caller thread. Receiving is done on the ThreadPool.
+ReceiverOptions receiverOptions = new()
+{
+    AllowedUpdates = Array.Empty<UpdateType>() // receive all update types except ChatMember related updates
+};
+
+botClient.StartReceiving(
+    updateHandler: HandleUpdateAsync,
+    pollingErrorHandler: HandlePollingErrorAsync,
+    receiverOptions: receiverOptions,
+    cancellationToken: cts.Token
+);
+
+var me = await botClient.GetMeAsync();
+
+Console.WriteLine($"Start listening for @{me.Username}");
+Console.ReadLine();
+
+// Send cancellation request to stop bot
 cts.Cancel();
 
-static Task Error(ITelegramBotClient client, Exception exception, CancellationToken token)
+async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
 {
-    throw new NotImplementedException();
+    // Only process Message updates: https://core.telegram.org/bots/api#message
+    if (update.Message is not { } message)
+        return;
+    // Only process text messages
+    if (message.Text is not { } messageText)
+        return;
+
+    var chatId = message.Chat.Id;
+
+    Console.WriteLine($"Received a '{messageText}' message in chat {chatId}.");
+
+    // Echo received message text
+    Message sentMessage;
+    switch (message!.Text.ToLower())
+    {
+        case "/start":
+            sentMessage = await botClient.SendTextMessageAsync(
+                message.Chat.Id, 
+                text: "Привет, это бот пока еще без предназначения. Так что можешь включать режим ждуна :)", 
+                cancellationToken: cancellationToken);
+            break;
+        case "/help":
+            sentMessage = await botClient.SendTextMessageAsync(message.Chat.Id, 
+                "Пока боту нечего сказать вам :(", 
+                cancellationToken: cancellationToken);
+            break;
+    }
 }
 
-async static Task Update(ITelegramBotClient client, Update update, CancellationToken token)
+Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
 {
-    Message? message = update.Message;
-    if (message!.Text != null)
+    var ErrorMessage = exception switch
     {
-        switch (message!.Text.ToLower())
-        {
-            case "/start":
-                await client.SendTextMessageAsync(message.Chat.Id, "Привет, это бот пока еще без предназначения. Так что можешь включать режим ждуна :)", replyMarkup: new ReplyKeyboardRemove());
-                break;
-            case "/help":
-                await client.SendTextMessageAsync(message.Chat.Id, "Пока боту нечего сказать вам :(", replyMarkup: new ReplyKeyboardRemove());
-                break;
-        }
-    }
+        ApiRequestException apiRequestException
+            => $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
+        _ => exception.ToString()
+    };
+
+    Console.WriteLine(ErrorMessage);
+    return Task.CompletedTask;
 }
